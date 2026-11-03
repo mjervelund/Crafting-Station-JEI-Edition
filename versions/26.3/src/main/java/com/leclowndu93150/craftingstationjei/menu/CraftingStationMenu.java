@@ -91,6 +91,12 @@ public class CraftingStationMenu extends AbstractContainerMenu {
         this.world = player.level();
         this.tileEntity = (CraftingStationBlockEntity) world.getBlockEntity(pos);
         this.craftMatrix = new PersistantCraftingContainer(this, simpleContainer);
+        if (tileEntity != null && !world.isClientSide() && simpleContainer == tileEntity.getInput()) {
+            // The station's input is shared by every player at this station: the block entity tells all open
+            // menus (this one included) when it changes.
+            craftMatrix.setNotifyMenu(false);
+            tileEntity.addMenu(this);
+        }
         this.serverDefinedSides = slotCountOverrides != null;
         if (slotCountOverrides != null) {
             this.clientSlotCountOverride.putAll(slotCountOverrides);
@@ -482,6 +488,7 @@ public class CraftingStationMenu extends AbstractContainerMenu {
     public void removed(Player player) {
         super.removed(player);
         if (!player.level().isClientSide() && tileEntity != null) {
+            tileEntity.removeMenu(this);
             tileEntity.setCurrentContainer(currentContainer);
         }
     }

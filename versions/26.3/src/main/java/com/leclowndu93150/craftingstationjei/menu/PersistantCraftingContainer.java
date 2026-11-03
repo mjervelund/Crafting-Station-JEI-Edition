@@ -14,6 +14,7 @@ public class PersistantCraftingContainer implements CraftingContainer {
     private final SimpleContainer delegate;
     private final AbstractContainerMenu menu;
     private boolean doNotCallUpdates;
+    private boolean notifyMenu = true;
 
     public PersistantCraftingContainer(AbstractContainerMenu menu, SimpleContainer delegate) {
         this.menu = menu;
@@ -22,6 +23,11 @@ public class PersistantCraftingContainer implements CraftingContainer {
 
     public void setDoNotCallUpdates(boolean flag) {
         this.doNotCallUpdates = flag;
+    }
+
+    /** False when the delegate notifies the menu itself (the station's shared input, server side). */
+    public void setNotifyMenu(boolean notifyMenu) {
+        this.notifyMenu = notifyMenu;
     }
 
     @Override
@@ -61,7 +67,7 @@ public class PersistantCraftingContainer implements CraftingContainer {
     @Override
     public ItemStack removeItem(int slot, int count) {
         ItemStack stack = delegate.removeItem(slot, count);
-        if (!stack.isEmpty() && !doNotCallUpdates) {
+        if (!stack.isEmpty() && !doNotCallUpdates && notifyMenu) {
             menu.slotsChanged(this);
         }
         return stack;
@@ -75,7 +81,7 @@ public class PersistantCraftingContainer implements CraftingContainer {
     @Override
     public void setItem(int slot, ItemStack stack) {
         delegate.setItem(slot, stack);
-        if (!doNotCallUpdates) {
+        if (!doNotCallUpdates && notifyMenu) {
             menu.slotsChanged(this);
         }
     }
