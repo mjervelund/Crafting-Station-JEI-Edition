@@ -691,7 +691,8 @@ public class CraftingStationMenu extends AbstractContainerMenu {
             SideContainerWrapper handler = getHandler();
             if (!craftingStationMenu.isValidSideSlot(handler, slotIndex) || !handler.valid(slotIndex)) return false;
             ItemStack existing = handler.getStack(slotIndex);
-            return existing.isEmpty() || ItemStack.isSameItemSameComponents(existing, stack);
+            return (existing.isEmpty() || ItemStack.isSameItemSameComponents(existing, stack))
+                    && (stack.isEmpty() || handler.getHandler().isValid(slotIndex, ItemResource.of(stack)));
         }
 
         @Override
@@ -719,7 +720,12 @@ public class CraftingStationMenu extends AbstractContainerMenu {
             if (target.isEmpty()) return;
             int delta = target.getCount() - handler.getStack(slotIndex).getCount();
             if (delta > 0) {
-                handler.insert(slotIndex, target.copyWithCount(delta), false);
+                // The caller has already taken these items from the player (a drag, JEI's rollback of a
+                // transfer): what the container does not accept goes back to the player instead of vanishing.
+                ItemStack rest = handler.insert(slotIndex, target.copyWithCount(delta), false);
+                if (!rest.isEmpty()) {
+                    craftingStationMenu.player.getInventory().placeItemBackInInventory(rest, Prediction.PREDICTED);
+                }
             } else if (delta < 0) {
                 handler.removeStack(slotIndex, -delta);
             }
