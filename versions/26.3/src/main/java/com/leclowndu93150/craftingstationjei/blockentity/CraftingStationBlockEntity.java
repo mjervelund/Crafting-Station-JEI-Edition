@@ -24,6 +24,10 @@ import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 
 import javax.annotation.Nullable;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
+import java.util.WeakHashMap;
 
 public class CraftingStationBlockEntity extends BlockEntity implements MenuProvider {
 
@@ -36,6 +40,8 @@ public class CraftingStationBlockEntity extends BlockEntity implements MenuProvi
     };
     private Direction currentContainer = null;
     private Component customName = null;
+    /** Server-side menus open on this station; they share {@link #input}, so each must recompute its result. */
+    private final Set<CraftingStationMenu> openMenus = Collections.newSetFromMap(new WeakHashMap<>());
 
     public CraftingStationBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntityTypes.CRAFTING_STATION.get(), pos, state);
@@ -46,6 +52,26 @@ public class CraftingStationBlockEntity extends BlockEntity implements MenuProvi
             setChanged();
             BlockState s = this.level.getBlockState(this.worldPosition);
             this.level.sendBlockUpdated(this.worldPosition, s, s, 3);
+            notifyMenus();
+        }
+    }
+
+    public void addMenu(CraftingStationMenu menu) {
+        openMenus.add(menu);
+    }
+
+    public void removeMenu(CraftingStationMenu menu) {
+        openMenus.remove(menu);
+    }
+
+    /**
+     * Recomputes the crafting result of every open menu. Without this, a second player's result slot kept the
+     * result of the grid as it was when they opened it, and taking it after the first player crafted or changed
+     * the grid produced the item without (or from the wrong) ingredients.
+     */
+    private void notifyMenus() {
+        for (CraftingStationMenu menu : List.copyOf(openMenus)) {
+            menu.slotsChanged(menu.craftMatrix);
         }
     }
 
@@ -81,6 +107,7 @@ public class CraftingStationBlockEntity extends BlockEntity implements MenuProvi
     public void preRemoveSideEffects(BlockPos pos, BlockState state) {
         if (this.level != null) {
             Containers.dropContents(this.level, pos, input);
+            notifyMenus();
         }
     }
 
